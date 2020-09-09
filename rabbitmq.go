@@ -3,24 +3,38 @@ package rabbitmq
 import (
 	"bytes"
 	"time"
-	"log"
+	"os"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"sync/atomic"
 )
+
 
 const delay = 3 // reconnect after delay seconds
 
 // LogFunc is a function that logs the provided message with optional
 // fmt.Sprintf-style arguments. By default, logs to the default log.Logger.
-var LogFuncInfo func(string, ...interface{}) = log.Printf
-var LogFuncError func(string, ...interface{}) = log.Printf
+// var LogFuncInfo func(string, ...interface{}) = log.Printf
+// var LogFuncError func(string, ...interface{}) = log.Printf
 
 type Config struct {
 	SSL    bool
 	Addr   string
 	User   string
 	Passwd string
+}
+
+func init() {
+  // Log as JSON instead of the default ASCII formatter.
+  log.SetFormatter(&log.JSONFormatter{})
+
+  // Output to stdout instead of the default stderr
+  // Can be any io.Writer, see below for File example
+  log.SetOutput(os.Stdout)
+
+  // Only log the warning severity or above.
+  log.SetLevel(log.InfoLevel)
 }
 
 func (cfg *Config) FormatURL() string {
@@ -63,7 +77,9 @@ func Dial(url string) (*Connection, error) {
 	if err != nil {
 		return nil, err
 	}
-	LogFuncInfo("rabbitmq connection success")
+
+	log.Info("rabbitmq connection success")
+	
 	connection := &Connection{
 		Connection: conn,
 	}
@@ -73,10 +89,10 @@ func Dial(url string) (*Connection, error) {
 			reason, ok := <-connection.Connection.NotifyClose(make(chan *amqp.Error))
 			// exit this goroutine if closed by developer
 			if !ok {
-				LogFuncInfo("rabbitmq connection closed")
+				log.Info("rabbitmq connection closed")
 				break
 			}
-			LogFuncError("rabbitmq connection closed, reason: %v", reason)
+			log.Error("rabbitmq connection closed, reason: %v", reason)
 
 			// reconnect if not closed by developer
 			for {
@@ -86,10 +102,10 @@ func Dial(url string) (*Connection, error) {
 				conn, err := amqp.Dial(url)
 				if err == nil {
 					connection.Connection = conn
-					LogFuncInfo("rabbitmq connection success")
+					log.Info("rabbitmq connection success")
 					break
 				}
-				LogFuncError("rabbitmq reconnect failed, err: %v", err)
+				log.Error("rabbitmq reconnect failed, err: %v", err)
 			}
 		}
 	}()
@@ -104,7 +120,7 @@ func (c *Connection) Channel() (*Channel, error) {
 		return nil, err
 	}
 
-	LogFuncInfo("rabbitmq channel opened")
+	log.Info("rabbitmq channel opened")
 	channel := &Channel{
 		Channel: ch,
 	}
@@ -114,11 +130,11 @@ func (c *Connection) Channel() (*Channel, error) {
 			reason, ok := <-channel.Channel.NotifyClose(make(chan *amqp.Error))
 			// exit this goroutine if closed by developer
 			if !ok || channel.IsClosed() {
-				LogFuncInfo("channel closed")
+				log.Info("channel closed")
 				channel.Close() // close again, ensure closed flag set when connection closed
 				break
 			}
-			LogFuncError("channel closed, reason: %v", reason)
+			log.Error("channel closed, reason: %v", reason)
 
 			// reconnect if not closed by developer
 			for {
@@ -127,12 +143,12 @@ func (c *Connection) Channel() (*Channel, error) {
 
 				ch, err := c.Connection.Channel()
 				if err == nil {
-					LogFuncInfo("channel recreate success")
+					log.Info("channel recreate success")
 					channel.Channel = ch
 					break
 				}
 
-				LogFuncError("channel recreate failed, err: %v", err)
+				log.Error("channel recreate failed, err: %v", err)
 			}
 		}
 
@@ -171,7 +187,7 @@ func (ch *Channel) Consume(queue, consumer string, autoAck, exclusive, noLocal, 
 		for {
 			d, err := ch.Channel.Consume(queue, consumer, autoAck, exclusive, noLocal, noWait, args)
 			if err != nil {
-				LogFuncError("consume failed, err: %v", err)
+				log.Error("consume failed, err: %v", err)
 				time.Sleep(delay * time.Second)
 				continue
 			}
