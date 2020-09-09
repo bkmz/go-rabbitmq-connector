@@ -25,7 +25,7 @@ func OpenConnect(uri string) ( *Channel, error ) {
 func (ch *Channel) InitStruct(prefix string) error {
 	var err error
 
-	log.Info("rabbitmq struct initing start")
+	log.Debug("rabbitmq struct initing start")
 
 	err = ch.ExchangeDeclare(
 		fmt.Sprintf("%sExchange", prefix), // name
@@ -129,6 +129,6 @@ func (ch *Channel) InitStruct(prefix string) error {
 		return err
 	}
 
-	log.Info("rabbitmq struct initing success")
+	log.Debug("rabbitmq struct initing success")
 	return nil
 }
