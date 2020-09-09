@@ -3,6 +3,7 @@ package rabbitmq
 import (
 	"bytes"
 	"time"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
