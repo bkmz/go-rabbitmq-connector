@@ -3,6 +3,7 @@ package rabbitmq
 import (
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
@@ -24,7 +25,7 @@ func OpenConnect(uri string) ( *Channel, error ) {
 func (ch *Channel) InitStruct(prefix string) error {
 	var err error
 
-	LogFuncInfo("rabbitmq struct initing start")
+	log.Info("rabbitmq struct initing start")
 
 	err = ch.ExchangeDeclare(
 		fmt.Sprintf("%sExchange", prefix), // name
@@ -128,6 +129,6 @@ func (ch *Channel) InitStruct(prefix string) error {
 		return err
 	}
 
-	LogFuncInfo("rabbitmq struct initing success")
+	log.Info("rabbitmq struct initing success")
 	return nil
 }
