@@ -34,7 +34,7 @@ func init() {
   log.SetOutput(os.Stdout)
 
   // Only log the warning severity or above.
-  log.SetLevel(log.Info)
+  log.SetLevel(log.InfoLevel)
 }
 
 func (cfg *Config) FormatURL() string {
