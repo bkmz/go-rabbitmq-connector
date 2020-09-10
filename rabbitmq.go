@@ -77,7 +77,7 @@ func Dial(url string) (*Connection, error) {
 	return connection, nil
 }
 
-func Dial(url string, cfg *tls.Config) (*Connection, error) {
+func DialTLS(url string, cfg *tls.Config) (*Connection, error) {
 
 	conn, err := amqp.DialTLS(url, cfg)
 	if err != nil {
