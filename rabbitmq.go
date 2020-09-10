@@ -3,6 +3,7 @@ package rabbitmq
 import (
 	"os"
 	"time"
+	"crypto/tls"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
@@ -63,6 +64,48 @@ func Dial(url string) (*Connection, error) {
 				time.Sleep(delay * time.Second)
 
 				conn, err := amqp.Dial(url)
+				if err == nil {
+					connection.Connection = conn
+					log.Info("rabbitmq connection success")
+					break
+				}
+				log.Errorf("rabbitmq reconnect failed, err: %v", err)
+			}
+		}
+	}()
+
+	return connection, nil
+}
+
+func Dial(url string, cfg *tls.Config) (*Connection, error) {
+
+	conn, err := amqp.DialTLS(url, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info("rabbitmq connection success")
+
+	connection := &Connection{
+		Connection: conn,
+	}
+
+	go func() {
+		for {
+			reason, ok := <-connection.Connection.NotifyClose(make(chan *amqp.Error))
+			// exit this goroutine if closed by developer
+			if !ok {
+				log.Info("rabbitmq connection closed")
+				break
+			}
+			log.Errorf("rabbitmq connection closed, reason: %v", reason)
+
+			// reconnect if not closed by developer
+			for {
+				// wait 1s for reconnect
+				time.Sleep(delay * time.Second)
+
+				conn, err := amqp.DialTLS(url, cfg)
 				if err == nil {
 					connection.Connection = conn
 					log.Info("rabbitmq connection success")
