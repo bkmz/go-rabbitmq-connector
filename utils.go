@@ -1,6 +1,7 @@
 package rabbitmq
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -11,13 +12,41 @@ import (
 )
 
 type Config struct {
-	SSL    bool
-	Addr   string
-	User   string
-	Passwd string
-	CACertPath string
-	ClientCertPath string
+	SSL               bool
+	Addr              string
+	User              string
+	Passwd            string
+	CACertPath        string
+	ClientCertPath    string
 	ClientPrivKeyPath string
+}
+
+func (cfg *Config) FormatURL() string {
+	var buf bytes.Buffer
+
+	// [ampq[s]://]
+	buf.WriteString("amqp")
+
+	if cfg.SSL {
+		buf.WriteByte('s')
+	}
+	buf.WriteString("://")
+
+	// user:password@
+	if len(cfg.User) > 0 {
+		buf.WriteString(cfg.User)
+		if len(cfg.Passwd) > 0 {
+			buf.WriteByte(':')
+			buf.WriteString(cfg.Passwd)
+		}
+		buf.WriteByte('@')
+	}
+
+	// [address:port/]
+	buf.WriteString(cfg.Addr)
+	buf.WriteByte('/')
+
+	return buf.String()
 }
 
 func OpenConnect(cfg *Config) (*Channel, error) {
@@ -29,7 +58,7 @@ func OpenConnect(cfg *Config) (*Channel, error) {
 		err       error
 	)
 
-	connectionURL := FormatURL(cfg)
+	connectionURL := cfg.FormatURL()
 
 	// Check if ssl read certs
 	if cfg.SSL {
@@ -66,34 +95,6 @@ func OpenConnect(cfg *Config) (*Channel, error) {
 	}
 
 	return ch, nil
-}
-
-func (cfg *Config) FormatURL() string {
-	var buf bytes.Buffer
-
-	// [ampq[s]://]
-	buf.WriteString("amqp")
-
-	if cfg.SSL {
-		buf.WriteByte('s')
-	}
-	buf.WriteString("://")
-
-	// user:password@
-	if len(cfg.User) > 0 {
-		buf.WriteString(cfg.User)
-		if len(cfg.Passwd) > 0 {
-			buf.WriteByte(':')
-			buf.WriteString(cfg.Passwd)
-		}
-		buf.WriteByte('@')
-	}
-
-	// [address:port/]
-	buf.WriteString(cfg.Addr)
-	buf.WriteByte('/')
-
-	return buf.String()
 }
 
 func (ch *Channel) InitStruct(prefix string) error {
