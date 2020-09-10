@@ -140,7 +140,7 @@ func (c *Connection) Channel() (*Channel, error) {
 				channel.Close() // close again, ensure closed flag set when connection closed
 				break
 			}
-			log.Error("channel closed, reason: %v", reason)
+			log.Errorf("channel closed, reason: %v", reason)
 
 			// reconnect if not closed by developer
 			for {
