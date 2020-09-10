@@ -67,7 +67,7 @@ func OpenConnect(cfg *Config) (*Channel, error) {
 
 		tlsConfig.RootCAs = x509.NewCertPool()
 
-		log.Debug("Read ca certificate from %s", cfg.CACertPath)
+		log.Debugf("read ca certificate from %s", cfg.CACertPath)
 
 		if ca, err := ioutil.ReadFile(cfg.CACertPath); err != nil {
 			return nil, err
@@ -75,8 +75,8 @@ func OpenConnect(cfg *Config) (*Channel, error) {
 			tlsConfig.RootCAs.AppendCertsFromPEM(ca)
 		}
 
-		log.Debug("Read client certificate from %s", cfg.ClientCertPath)
-		log.Debug("Read client private key from %s", cfg.ClientPrivKeyPath)
+		log.Debugf("read client certificate from %s", cfg.ClientCertPath)
+		log.Debugf("read client private key from %s", cfg.ClientPrivKeyPath)
 
 		if cert, err := tls.LoadX509KeyPair(cfg.ClientCertPath, cfg.ClientPrivKeyPath); err != nil {
 			return nil, err
