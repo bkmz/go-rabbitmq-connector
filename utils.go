@@ -15,6 +15,9 @@ type Config struct {
 	Addr   string
 	User   string
 	Passwd string
+	CACertPath string
+	ClientCertPath string
+	ClientPrivKeyPath string
 }
 
 func OpenConnect(cfg *Config) (*Channel, error) {
@@ -34,13 +37,13 @@ func OpenConnect(cfg *Config) (*Channel, error) {
 
 		tlsConfig.RootCAs = x509.NewCertPool()
 
-		if ca, err := ioutil.ReadFile("testca/cacert.pem"); err == nil {
+		if ca, err := ioutil.ReadFile(cfg.CACertPath); err == nil {
 			tlsConfig.RootCAs.AppendCertsFromPEM(ca)
 		} else {
 			return nil, err
 		}
 
-		if cert, err := tls.LoadX509KeyPair("client/cert.pem", "client/key.pem"); err == nil {
+		if cert, err := tls.LoadX509KeyPair(cfg.ClientCertPath, cfg.ClientPrivKeyPath); err == nil {
 			tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 		} else {
 			return nil, err
