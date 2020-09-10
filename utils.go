@@ -57,7 +57,7 @@ func OpenConnect(cfg *Config) (*Channel, error) {
 		err       error
 	)
 
-	tlsConfig = new(tls.Config)
+	tlsConfig := new(tls.Config)
 
 	connectionURL := cfg.FormatURL()
 
