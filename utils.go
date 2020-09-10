@@ -52,11 +52,12 @@ func (cfg *Config) FormatURL() string {
 func OpenConnect(cfg *Config) (*Channel, error) {
 
 	var (
-		tlsConfig *tls.Config
 		conn      *Connection
 		ch        *Channel
 		err       error
 	)
+
+	tlsConfig = new(tls.Config)
 
 	connectionURL := cfg.FormatURL()
 
