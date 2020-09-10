@@ -66,16 +66,16 @@ func OpenConnect(cfg *Config) (*Channel, error) {
 
 		tlsConfig.RootCAs = x509.NewCertPool()
 
-		if ca, err := ioutil.ReadFile(cfg.CACertPath); err == nil {
-			tlsConfig.RootCAs.AppendCertsFromPEM(ca)
-		} else {
+		if ca, err := ioutil.ReadFile(cfg.CACertPath); err != nil {
 			return nil, err
+		} else {
+			tlsConfig.RootCAs.AppendCertsFromPEM(ca)
 		}
 
-		if cert, err := tls.LoadX509KeyPair(cfg.ClientCertPath, cfg.ClientPrivKeyPath); err == nil {
-			tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
-		} else {
+		if cert, err := tls.LoadX509KeyPair(cfg.ClientCertPath, cfg.ClientPrivKeyPath); err != nil {
 			return nil, err
+		} else {
+			tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
 		}
 
 		conn, err = DialTLS(connectionURL, tlsConfig)
