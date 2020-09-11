@@ -1,20 +1,101 @@
 package rabbitmq
 
 import (
+	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
-func OpenConnect(uri string) ( *Channel, error ) {
+type Config struct {
+	SSL               bool
+	Addr              string
+	User              string
+	Passwd            string
+	CACertPath        string
+	ClientCertPath    string
+	ClientPrivKeyPath string
+}
 
-	conn, err := Dial(uri)
+func (cfg *Config) FormatURL() string {
+	var buf bytes.Buffer
+
+	// [ampq[s]://]
+	buf.WriteString("amqp")
+
+	if cfg.SSL {
+		buf.WriteByte('s')
+	}
+	buf.WriteString("://")
+
+	// user:password@
+	if len(cfg.User) > 0 {
+		buf.WriteString(cfg.User)
+		if len(cfg.Passwd) > 0 {
+			buf.WriteByte(':')
+			buf.WriteString(cfg.Passwd)
+		}
+		buf.WriteByte('@')
+	}
+
+	// [address:port/]
+	buf.WriteString(cfg.Addr)
+	buf.WriteByte('/')
+
+	return buf.String()
+}
+
+func OpenConnect(cfg *Config) (*Channel, error) {
+
+	var (
+		conn      *Connection
+		ch        *Channel
+		err       error
+	)
+
+	tlsConfig := new(tls.Config)
+
+	connectionURL := cfg.FormatURL()
+
+	// Check if ssl read certs
+	if cfg.SSL {
+		// see example on https://github.com/streadway/amqp/blob/master/examples_test.go
+
+		tlsConfig.RootCAs = x509.NewCertPool()
+
+		log.Debugf("read ca certificate from %s", cfg.CACertPath)
+
+		if ca, err := ioutil.ReadFile(cfg.CACertPath); err != nil {
+			return nil, err
+		} else {
+			tlsConfig.RootCAs.AppendCertsFromPEM(ca)
+		}
+
+		log.Debugf("read client certificate from %s", cfg.ClientCertPath)
+		log.Debugf("read client private key from %s", cfg.ClientPrivKeyPath)
+
+		if cert, err := tls.LoadX509KeyPair(cfg.ClientCertPath, cfg.ClientPrivKeyPath); err != nil {
+			return nil, err
+		} else {
+			tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
+		}
+
+		conn, err = DialTLS(connectionURL, tlsConfig)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	conn, err = Dial(connectionURL)
 	if err != nil {
 		return nil, err
-	} 
+	}
 
-	ch, err := conn.Channel()
+	ch, err = conn.Channel()
 	if err != nil {
 		return nil, err
 	}

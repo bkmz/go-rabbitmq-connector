@@ -1,15 +1,14 @@
 package rabbitmq
 
 import (
-	"bytes"
-	"time"
 	"os"
+	"time"
+	"crypto/tls"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"sync/atomic"
 )
-
 
 const delay = 3 // reconnect after delay seconds
 
@@ -18,51 +17,16 @@ const delay = 3 // reconnect after delay seconds
 // var LogFuncInfo func(string, ...interface{}) = log.Printf
 // var LogFuncError func(string, ...interface{}) = log.Printf
 
-type Config struct {
-	SSL    bool
-	Addr   string
-	User   string
-	Passwd string
-}
-
 func init() {
-  // Log as JSON instead of the default ASCII formatter.
-  log.SetFormatter(&log.JSONFormatter{})
+	// Log as JSON instead of the default ASCII formatter.
+	log.SetFormatter(&log.JSONFormatter{})
 
-  // Output to stdout instead of the default stderr
-  // Can be any io.Writer, see below for File example
-  log.SetOutput(os.Stdout)
+	// Output to stdout instead of the default stderr
+	// Can be any io.Writer, see below for File example
+	log.SetOutput(os.Stdout)
 
-  // Only log the warning severity or above.
-  log.SetLevel(log.InfoLevel)
-}
-
-func (cfg *Config) FormatURL() string {
-	var buf bytes.Buffer
-
-	// [ampq[s]://]
-	buf.WriteString("amqp")
-
-	if cfg.SSL {
-		buf.WriteByte('s')
-	}
-	buf.WriteString("://")
-
-	// user:password@
-	if len(cfg.User) > 0 {
-		buf.WriteString(cfg.User)
-		if len(cfg.Passwd) > 0 {
-			buf.WriteByte(':')
-			buf.WriteString(cfg.Passwd)
-		}
-		buf.WriteByte('@')
-	}
-
-	// [address:port/]
-	buf.WriteString(cfg.Addr)
-	buf.WriteByte('/')
-
-	return buf.String()
+	// Only log the warning severity or above.
+	log.SetLevel(log.InfoLevel)
 }
 
 // Connection amqp.Connection wrapper
@@ -79,7 +43,7 @@ func Dial(url string) (*Connection, error) {
 	}
 
 	log.Info("rabbitmq connection success")
-	
+
 	connection := &Connection{
 		Connection: conn,
 	}
@@ -92,7 +56,7 @@ func Dial(url string) (*Connection, error) {
 				log.Info("rabbitmq connection closed")
 				break
 			}
-			log.Error("rabbitmq connection closed, reason: %v", reason)
+			log.Errorf("rabbitmq connection closed, reason: %v", reason)
 
 			// reconnect if not closed by developer
 			for {
@@ -105,7 +69,49 @@ func Dial(url string) (*Connection, error) {
 					log.Info("rabbitmq connection success")
 					break
 				}
-				log.Error("rabbitmq reconnect failed, err: %v", err)
+				log.Errorf("rabbitmq reconnect failed, err: %v", err)
+			}
+		}
+	}()
+
+	return connection, nil
+}
+
+func DialTLS(url string, cfg *tls.Config) (*Connection, error) {
+
+	conn, err := amqp.DialTLS(url, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Info("rabbitmq connection success")
+
+	connection := &Connection{
+		Connection: conn,
+	}
+
+	go func() {
+		for {
+			reason, ok := <-connection.Connection.NotifyClose(make(chan *amqp.Error))
+			// exit this goroutine if closed by developer
+			if !ok {
+				log.Info("rabbitmq connection closed")
+				break
+			}
+			log.Errorf("rabbitmq connection closed, reason: %v", reason)
+
+			// reconnect if not closed by developer
+			for {
+				// wait 1s for reconnect
+				time.Sleep(delay * time.Second)
+
+				conn, err := amqp.DialTLS(url, cfg)
+				if err == nil {
+					connection.Connection = conn
+					log.Info("rabbitmq connection success")
+					break
+				}
+				log.Errorf("rabbitmq reconnect failed, err: %v", err)
 			}
 		}
 	}()
@@ -134,7 +140,7 @@ func (c *Connection) Channel() (*Channel, error) {
 				channel.Close() // close again, ensure closed flag set when connection closed
 				break
 			}
-			log.Error("channel closed, reason: %v", reason)
+			log.Errorf("channel closed, reason: %v", reason)
 
 			// reconnect if not closed by developer
 			for {
@@ -148,7 +154,7 @@ func (c *Connection) Channel() (*Channel, error) {
 					break
 				}
 
-				log.Error("channel recreate failed, err: %v", err)
+				log.Errorf("channel recreate failed, err: %v", err)
 			}
 		}
 
@@ -187,7 +193,7 @@ func (ch *Channel) Consume(queue, consumer string, autoAck, exclusive, noLocal, 
 		for {
 			d, err := ch.Channel.Consume(queue, consumer, autoAck, exclusive, noLocal, noWait, args)
 			if err != nil {
-				log.Error("consume failed, err: %v", err)
+				log.Errorf("consume failed, err: %v", err)
 				time.Sleep(delay * time.Second)
 				continue
 			}
