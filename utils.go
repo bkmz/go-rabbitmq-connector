@@ -136,6 +136,8 @@ func (ch *Channel) InitStruct(prefix string) error {
 
 	args := amqp.Table{
 		"x-dead-letter-exchange": fmt.Sprintf("%sRetryExchange", prefix),
+		"ha-mode": "exactly",
+		"ha-params": 2,
 	}
 	_, err = ch.QueueDeclare(
 		fmt.Sprintf("%sQueue", prefix), // name
